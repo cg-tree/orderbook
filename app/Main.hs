@@ -1,4 +1,4 @@
-
+--Group 9
 module Main where
 
 main :: IO ()
@@ -6,8 +6,7 @@ main = putStrLn (if and tests then "passed all tests" else show tests)
 --processOrderBatch testOrders initialState
 
 initialState = (([],[]),[])
-testOrders = [ Limit s 1 p 1 | s<-[Buy, Sell], p <-[1,3]]
-test1 = [Market s 0 1|s<-[Buy,Sell] ]
+testOrders = [ Limit s 1 p 1 | s<-[Buy, Sell], p <-[1,3], q<-[0.5,1.0..2.0]]++ [Market s 0 1|s<-[Buy,Sell] ]
 
 tests = [testBidEnque0,testBidEnque1,testAskEnque0,testAskEnque1,testMarket0,testMarket1  ]
 -- test ordering when prices are the same
