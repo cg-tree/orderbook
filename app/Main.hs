@@ -2,13 +2,14 @@
 module Main where
 
 main :: IO ()
-main = putStrLn . show $ testMarket0
+main = putStrLn (if and tests then "passed all tests" else show tests)
 --processOrderBatch testOrders initialState
 
 initialState = (([],[]),[])
 testOrders = [ Limit s 1 p 1 | s<-[Buy, Sell], p <-[1,3]]
 test1 = [Market s 0 1|s<-[Buy,Sell] ]
 
+tests = [testBidEnque0,testBidEnque1,testAskEnque0,testAskEnque1,testMarket0,testMarket1  ]
 -- test ordering when prices are the same
 testBidEnque0 = a == b
   where
@@ -33,9 +34,15 @@ testAskEnque1 = a == b
     a = processOrderBatch [Limit Sell 0 i 1|i<-[1..5] ] initialState
     b = (([],[Limit Sell 0 1.0 1.0,Limit Sell 0 2.0 1.0,Limit Sell 0 3.0 1.0,Limit Sell 0 4.0 1.0,Limit Sell 0 5.0 1.0]),[])
 
-testMarket0 = a
+testMarket0 = a == initialState
   where
     a = processOrderBatch [Market Buy 1 1] initialState
+
+testMarket1 = a == b
+  where
+    a = processOrderBatch [Market Buy 1 1.5] (([],[Limit Sell 0 1.0 1.0,Limit Sell 0 2.0 1.0,Limit Sell 0 3.0 1.0,Limit Sell 0 4.0 1.0,Limit Sell 0 5.0 1.0]),[])
+    b = (([],[Limit Sell 0 2.0 0.5,Limit Sell 0 3.0 1.0,Limit Sell 0 4.0 1.0,Limit Sell 0 5.0 1.0]),[(Market Buy 1 0.5,Limit Sell 0 2.0 0.5),(Market Buy 1 1.0,Limit Sell 0 1.0 1.0)])
+
 
 --An Exchange is a match-making queue that extracts a fee.
 --An Exchange is a match-making queue that extracts a fee.
@@ -68,24 +75,8 @@ type Book = ([Order], [Order])
 type Trade = (Order, Order)
 type State = (Book, [Trade])
 {--
-isMarket :: Order ->state-> Bool
-isMarket order state = case order of
-  Market _ _ _ -> True
-  Limit side _ price _ -> case side of
-    Buy -> price >= ask
-    Sell -> price <= bid
-bestBid :: state -> Float
-bestBid (book, _) = price
-  where
-  (bids, _) = book
-  (bid:_) = bids
-  (_,_,price,_) = bid
-bestAsk :: state -> Float
-bestAsk (book, _) = price
-  where
-  (asks, _) = book
-  (ask:_) = asks
-  (_,_,price,_) = ask
+
+
 --}
 processOrder:: Order -> State -> State
 processOrder order = case order of
@@ -102,16 +93,10 @@ compL :: [ a -> a ] -> a -> a
 compL [] = id
 compL (f:fs) = compL fs . f
 
-{-order2lim :: Order -> Limit
-order2lim order = case order of
-  Limit side a b c -> case side of
-    Buy -> Bid a b c
-    Sell -> Ask a b c
--}
 orderHead [] = None
 orderHead (x:_)= x
 
-orderTail [] = [None]
+orderTail [] = []
 orderTail (_:xs)= xs
 
 processLimitOrder :: Order -> State -> State
@@ -244,46 +229,3 @@ match taker maker = (rtaker, rmaker, [(etaker, emaker)])
     emaker = Limit sm im pm qty
 
 
---marketbuy :: ([(b,d,c)],[(b,d,c)])-> (b,c) -> ([(b,d,c)],[(b,d,c)]) [(b,b,d,c)]
---marketbuy book (id, 0) = book []
-{--marketbuy (bids, (aid, price, qty):[]) (id, quantity) = (bids, newasks) trades
-  where
-    minq = min qty quantity
-    newqty = (max qty quantity) - minq
-    newasks
-      | qty > quantity = [(aid, price, newqty)]
-      | otherwise = []
-    trades = [(id, aid, price, minq )]
---}
-{--marketbuy (bids, asks) (id, quantity) = (bids, newasks) trades
-  where
-    ntake = totake asks quantity
-    fulltrades = [(id, aid, price, q) | (aid, price, q) <- (take ntake asks)]
-    nqty = quantity - (sum [q | (_,_,_,q) <- fulltrades])
-    nasks = drop ntake asks
-    
-    traderemainder = [(id,aid,price,nqty)|(aid, price, _)<-[(head nasks)], nqty > 0]
-    askremainder = [(aid,price, qty - nqty)|(aid, price, qty)<-[(head nasks)], qty - nqty > 0]
-    
-    trades = fulltrades ++ traderemainder
-    newasks = askremainder ++ (tail nasks)
-
-marketsell :: ([(b,d,c)],[(b,d,c)])-> (b,c) -> ([(b,d,c)],[(b,d,c)]) [(b,b,d,c)]
-marketsell (bids, asks) (id, quantity) = (newbids, asks) trades
-  where
-    ntake = totake bids quantity
-    fulltrades = [(bid, id, price, q) | (bid, price, q) <- (take ntake bids)]
-    nqty = quantity - (sum [q | (_,_,_,q) <- fulltrades])
-    nbids = drop ntake bids
-    
-    traderemainder = [(bid,id,price,nqty) | (bid, price, _) <- [(head nbids)], nqty > 0]
-    bidremainder = [(bid,price, qty - nqty) | (bid, price, qty) <- [(head nbids)], qty - nqty > 0]
-    
-    trades = fulltrades ++ traderemainder
-    newbids= bidremainder ++ (tail nbids)
-
-market (bids, asks) (id, side, quantity)
-  | side == "buy" = marketbuy (bids, asks) (id, quantity)
-  | otherwise = marketsell (bids, asks) (id, quantity)
-
---}
