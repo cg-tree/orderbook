@@ -173,13 +173,12 @@ insert op x xs = ys
   where
     ys = (takeWhile op xs) ++[x]++ (dropWhile op xs)
 
-maker id offset price = [Limit Buy id ( price - offset ) 1, Limit Sell id ( price + offset ) 1]
-
+{--
 --totake [] _ = 0
 totake ((_,_,q):xs) qty
   | and [(qty - q) >= 0, qty > 0] = 1 + totake xs (qty - q)
   | otherwise = 0
-
+--}
 isMatch :: Order -> Order -> Bool
 isMatch None _ = False
 isMatch _ None = False
@@ -228,3 +227,12 @@ match taker maker = (rtaker, rmaker, [(etaker, emaker)])
     emaker = Limit sm im pm qty
 
 
+traders :: State -> [Order]
+traders (_,trade:_) = go [maker id offset price price| (id,offset) <- idof]
+  where
+    idof = zip [1..] [0.5,1..10]
+    (_, m) = trade
+    Limit _ _ price _ = m
+    go [] = []
+    go (x:xs) = go xs ++ x
+maker id offset price qty= [Limit Buy id ( price - offset ) qty, Limit Sell id ( price + offset ) qty]
