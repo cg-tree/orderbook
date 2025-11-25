@@ -228,11 +228,29 @@ match taker maker = (rtaker, rmaker, [(etaker, emaker)])
 
 
 traders :: State -> [Order]
-traders (_,trade:_) = go [maker id offset price price| (id,offset) <- idof]
+
+traders (_,trade:_) = go [maker id offset price (price+offset)| (id,offset) <- idof]
   where
     idof = zip [1..] [0.5,1..10]
     (_, m) = trade
     Limit _ _ price _ = m
     go [] = []
     go (x:xs) = go xs ++ x
+
+traders ((b:bids,a:asks), []) = go [maker id offset price (price+offset)| (id,offset) <- idof]
+  where
+    idof = zip [1..] [0.5,1..10]
+    Limit _ _ pb _ = b
+    Limit _ _ pa _ = a
+    price = (pb + pa)/2
+    go [] = []
+    go (x:xs) = go xs ++ x
+
+traders _ = go [maker id offset price (price+offset)| (id,offset) <- idof]
+  where
+    idof = zip [1..] [0.5,1..10]
+    price = 100
+    go [] = []
+    go (x:xs) = go xs ++ x
+
 maker id offset price qty= [Limit Buy id ( price - offset ) qty, Limit Sell id ( price + offset ) qty]
