@@ -229,28 +229,49 @@ match taker maker = (rtaker, rmaker, [(etaker, emaker)])
 
 traders :: State -> [Order]
 
-traders (_,trade:_) = go [maker id offset price (price+offset)| (id,offset) <- idof]
+traders ( (bids, asks), trade:_) = makerorders ++ takerorders
   where
     idof = zip [1..] [0.5,1..10]
     (_, m) = trade
-    Limit _ _ price _ = m
+    Limit side _ price _ = m
+    takerside = if side == Buy then Sell else Buy
+    cnt = (length bids) - (length asks)
+    count = if cnt > 0 then cnt else (-1)*cnt
+    takerorders = takers count takerside price
     go [] = []
     go (x:xs) = go xs ++ x
+    makerorders = go [maker id offset price (price+offset)| (id,offset) <- idof]
 
-traders ((b:bids,a:asks), []) = go [maker id offset price (price+offset)| (id,offset) <- idof]
+traders ((b:bids,a:asks), []) = go [maker id offset price (price+offset)| (id,offset) <- idof] ++ (takers 1 Buy price) 
   where
-    idof = zip [1..] [0.5,1..10]
+    idof = zip [1..] [spread,2*spread..10*spread]
     Limit _ _ pb _ = b
     Limit _ _ pa _ = a
     price = (pb + pa)/2
+    spread = pa - pb
     go [] = []
     go (x:xs) = go xs ++ x
 
 traders _ = go [maker id offset price (price+offset)| (id,offset) <- idof]
   where
-    idof = zip [1..] [0.5,1..10]
+    idof = zip [1..] [0.5,1..5]
     price = 100
     go [] = []
     go (x:xs) = go xs ++ x
 
 maker id offset price qty= [Limit Buy id ( price - offset ) qty, Limit Sell id ( price + offset ) qty]
+
+
+
+takers 0 side qty= [Market side 0 qty]
+takers n side qty= [Market side i (qty* (fromIntegral i) ) | i <-[1..n]]
+
+step :: State -> State
+step state = processOrderBatch (traders state) state
+
+nstep :: Int -> State -> State
+nstep n = compL [ step | x <- [1..n]]
+
+trades2prices trades = prices
+  where
+    prices = reverse [price | (_,Limit _ _ price _) <- trades]
