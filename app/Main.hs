@@ -92,6 +92,7 @@ compL :: [ a -> a ] -> a -> a
 compL [] = id
 compL (f:fs) = compL fs . f
 
+dualComp a b x = a (b x) x
 orderHead [] = None
 orderHead (x:_)= x
 
@@ -229,17 +230,19 @@ match taker maker = (rtaker, rmaker, [(etaker, emaker)])
 
 traders :: State -> [Order]
 
-traders ( (bids, asks), trade:_) = makerorders ++ takerorders
+traders ( (bids, asks), trade:trades) = makerorders ++ takerorders ++ contraryorders
   where
-    idof = zip [1..] [0.5,1..10]
+    state = ((bids,asks), trade:trades)
+    idof = zip [1..] [1,2..5]
     (_, m) = trade
     Limit side _ price _ = m
     takerside = if side == Buy then Sell else Buy
     cnt = (length bids) - (length asks)
-    count = if cnt > 0 then cnt else (-1)*cnt
+    count = if cnt > 0 then 3*cnt else (-3)*cnt
     takerorders = takers count takerside price
     go [] = []
     go (x:xs) = go xs ++ x
+    contraryorders = go [contrarian f state | f <- [0.01,0.05..0.1]]
     makerorders = go [maker id offset price (price+offset)| (id,offset) <- idof]
 
 traders ((b:bids,a:asks), []) = go [maker id offset price (price+offset)| (id,offset) <- idof] ++ (takers 1 Buy price) 
@@ -267,7 +270,7 @@ takers 0 side qty= [Market side 0 qty]
 takers n side qty= [Market side i (qty* (fromIntegral i) ) | i <-[1..n]]
 
 step :: State -> State
-step state = processOrderBatch (traders state) state
+step = dualComp processOrderBatch traders
 
 nstep :: Int -> State -> State
 nstep n = compL [ step | x <- [1..n]]
@@ -275,3 +278,40 @@ nstep n = compL [ step | x <- [1..n]]
 trades2prices trades = prices
   where
     prices = reverse [price | (_,Limit _ _ price _) <- trades]
+
+
+isIncreasing xs = if rhead xs >= avg (rtail xs) then True else False
+
+isMax xs = if rhead xs >= foldr max 0 (rtail xs) then True else False
+
+avg :: Fractional a=>[a]-> a
+avg xs = (sum xs) / len
+  where len = fromIntegral (length xs)
+
+var:: Fractional a=>[a]-> a
+var xs = (avg (map (^2) xs)) - ((avg xs)^2)
+
+std:: Floating a=>[a]->a
+std xs = sqrt (var xs)
+
+rtail = reverse.tail.reverse
+rhead = head.reverse
+runFold :: ([a] -> b) -> [a] -> [b]
+runFold f [] = []
+runFold f xs = f1 ++ [f xs]
+  where
+    f1 = runFold f (rtail xs)
+
+contrarian f (book, trades)= orders
+  where
+    prices = trades2prices trades
+    last = rhead prices
+    qty = avg prices
+    sprice = (1+f)*last
+    bprice = (1-f)*last
+    orders = if isIncreasing prices
+      then [Limit Sell 101 sprice qty,
+        Market Sell 102 qty]
+      else [Limit Buy 101 bprice qty,
+        Market Buy 102 qty]
+
