@@ -14,4 +14,15 @@ will yields a ssequence of running averages
 each computed over a larger interval than the last
 
 
+other noteworthy functions:
+dualComp a b x
+ a is a function of (b x) and x
+ b is a function of x
+ so
+ === a (b x) x
+ this is used to apply the same state to the function that creates orders
+ as well as the function that consumes orders see: step
+
+compL composes a list of functions see: nstep
+
 
