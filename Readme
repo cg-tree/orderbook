@@ -25,4 +25,13 @@ dualComp a b x
 
 compL composes a list of functions see: nstep
 
+stats:
+avg
+std
+var
+
+classification:
+isIncreasing
+isMax
+
 
