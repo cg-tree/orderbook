@@ -1,0 +1,17 @@
+
+Run cabal repl
+
+run:
+(book,trades) = nstep 10 initialState
+prices = trades2prices trades
+
+
+Use runFold to compute the sequence
+[f [x0], f [x0,x1] .. f [x0 ..] ]
+for example 
+  runFold avg prices
+will yields a ssequence of running averages
+each computed over a larger interval than the last
+
+
+
